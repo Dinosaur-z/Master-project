@@ -1,33 +1,12 @@
 # Package used
 import pandas as pd
 import os
-import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
-import scipy.stats as stats
-from scipy.stats import spearmanr
-from scipy.stats import pearsonr
-from scipy.stats import linregress
-from scipy.stats import mannwhitneyu
-from datetime import datetime
-from statsmodels.formula.api import ols
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-import scikit_posthocs as sp
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from mpl_toolkits.mplot3d import Axes3D
-from statsmodels.nonparametric.smoothers_lowess import lowess
-import glob
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-
-
 
 ### Note ###
 # From here I started to do my actual experiment run with the antibody combination that works well in IF
-# Sample 1E: LM048 (G4), Hif-1a, CD36
-# Sample 2E: LM048 (G4), Fasn, CD36
+# Sample 1: LM048 (G4), Hif-1a, CD36
+# Sample 2: LM048 (G4), Fasn, CD36
 # Samples were taken on 0314 / 0320 / 0326 -> three replicates
 
 ############## Data Gating #############
@@ -56,8 +35,6 @@ def set_threshold(input_file, thresholds):
 
 
 ###== Male EPI ==###
-
-
 # Second replicate -> Exp II
 thresholds_ExpII_1E = {'circularity':0.97, 'perimeter':250}
 filter_ExpII_1E = set_threshold('/Users/dinosaur.z/Desktop/1E_1.csv', thresholds_ExpII_1E)
@@ -78,6 +55,7 @@ filter_ExpIV_1E = set_threshold('/Users/dinosaur.z/Desktop/1E_2.csv', thresholds
 
 thresholds_ExpIV_2E = {'circularity': 0.994, 'perimeter': 227}
 filter_ExpIV_2E = set_threshold('/Users/dinosaur.z/Desktop/2E_2.csv', thresholds_ExpIV_2E)
+
 
 ###== Female PG ==###
 # First replicate
