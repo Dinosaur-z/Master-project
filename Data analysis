@@ -1,0 +1,1283 @@
+# Package used
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+import numpy as np
+import seaborn as sns
+import scipy.stats as stats
+from scipy.stats import spearmanr
+from scipy.stats import pearsonr
+from scipy.stats import linregress
+from scipy.stats import mannwhitneyu
+from datetime import datetime
+from statsmodels.formula.api import ols
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+import scikit_posthocs as sp
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from mpl_toolkits.mplot3d import Axes3D
+from statsmodels.nonparametric.smoothers_lowess import lowess
+from sklearn.linear_model import LinearRegression
+from pathlib import Path
+import glob
+
+
+# Final file path stored on my laptop
+###== Male ==###
+ExpII_1E = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep2_1E_1_filter.csv"
+ExpII_2E = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep2_2E_2_filter.csv"
+ExpIII_1E = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep3_1E_s2_filter.csv"
+ExpIII_2E = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep3_2E_2_filter.csv"
+ExpIV_1E = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep4_1E_2_filter.csv"
+ExpIV_2E = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep4_2E_2_filter.csv"
+
+###== Female ==###
+ExpI_1PG = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep1_1PG_filter.csv"
+ExpI_2PG = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep1_2PG_filter.csv"
+ExpII_1PG = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep2_1PG_filter.csv"
+ExpII_2PG = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep2_2PG_filter.csv"
+ExpIII_1PG = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep3_1PG_filter.csv"
+ExpIII_2PG = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)/Rep3_2PG_filter.csv"
+data_folder = "/Users/dinosaur.z/PycharmProjects/Summer/Heterogeneity/Triple staining (Exp 7-9)"
+
+
+########### Normality test / Normal distribution ###########
+def normality_test(file_path, columns, log_transform=False, save_path=None):
+    '''
+    Test normality using histograms, Q-Q plots, and the Shapiro-Wilk test
+    Parameters:
+        file_path(str): Path to the csv file
+        columns(list) = List of column names to test
+    '''
+    # Load data
+    df = pd.read_csv(file_path)
+
+    # Set default save path to Desktop if none is provided
+    if save_path is None:
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        save_path = os.path.join(desktop, "normality_plots")
+
+    # Create directory if it doesn’t exist
+    os.makedirs(save_path, exist_ok=True)
+
+    # Create subplots
+    fig, axes = plt.subplots(len(columns), 2, figsize=(8, len(columns) * 4))
+    #axes = axes.flatten()
+
+    if len(columns) == 1: # Handel case with only one column
+        axes = np.array([axes])
+
+    for i, column in enumerate(columns):
+        if column not in df:
+            print(f"Warning: Column'{column}'not found in the dataset.")
+            continue
+
+        # Apply log transformation if spcified
+        intensity_values = np.log(df[column]) if log_transform else df[column]
+
+        # Histogram
+        axes[i, 0].hist(intensity_values, bins=10, color='skyblue', edgecolor='black')
+        axes[i, 0].set_title(f'Histogram of {column} {"(Log)" if log_transform else ""}')
+        axes[i, 0].set_xlabel(f"{column}")
+        axes[i, 0].set_ylabel('Frequency')
+
+        # Q-Q Plot
+        stats.probplot(intensity_values, dist="norm", plot=axes[i, 1])
+        axes[i, 1].set_title(f'Q-Q Plot of {column} {"(Log)" if log_transform else ""}')
+
+        # Shapiro-Wilk Test
+        stat, p_value = stats.shapiro(intensity_values)
+        print(f"{column}: Shapiro-Wilk test p-value = {p_value:.4f} {'(Normal)' if p_value > 0.05 else '(Not Normal)'}")
+
+    plt.suptitle("Normality Test" + (" (Log Transformed)" if log_transform else ""))
+    plt.tight_layout()
+
+    # Generate unique filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"normality_test_{timestamp}.png"
+    save_file = os.path.join(save_path, filename)
+
+    # Save the figure
+    plt.savefig(save_file, dpi=300)
+    plt.show()
+
+    print(f"Plot saved at: {save_file}")
+
+
+columns_to_test = [ "mean_488[/µm²]", "mean_568[/µm²]","mean_647[/µm²]", "cell_volume"]
+
+# Male EPI
+normality_test(ExpII_1E, columns_to_test, log_transform=False)
+normality_test(ExpII_1E, columns_to_test, log_transform=True)
+
+normality_test(ExpII_2E, columns_to_test, log_transform=False)
+normality_test(ExpII_2E, columns_to_test, log_transform=True)
+
+normality_test(ExpIII_1E, columns_to_test, log_transform=False)
+normality_test(ExpIII_1E, columns_to_test, log_transform=True)
+
+normality_test(ExpIII_2E, columns_to_test, log_transform=False)
+normality_test(ExpIII_2E, columns_to_test, log_transform=True)
+
+normality_test(ExpIV_1E, columns_to_test, log_transform=False)
+normality_test(ExpIV_1E, columns_to_test, log_transform=True)
+
+normality_test(ExpIV_2E, columns_to_test, log_transform=False)
+normality_test(ExpIV_2E, columns_to_test, log_transform=True)
+
+# Female PG
+normality_test(ExpI_1PG, columns_to_test, log_transform=False)
+normality_test(ExpI_1PG, columns_to_test, log_transform=True)
+
+normality_test(ExpI_2PG, columns_to_test, log_transform=False)
+normality_test(ExpI_2PG, columns_to_test, log_transform=True)
+
+normality_test(ExpII_1PG, columns_to_test, log_transform=False)
+normality_test(ExpII_1PG, columns_to_test, log_transform=True)
+
+normality_test(ExpII_2PG, columns_to_test, log_transform=False)
+normality_test(ExpII_2PG, columns_to_test, log_transform=True)
+
+normality_test(ExpIII_1PG, columns_to_test, log_transform=False)
+normality_test(ExpIII_1PG, columns_to_test, log_transform=True)
+
+normality_test(ExpIII_2PG, columns_to_test, log_transform=False)
+normality_test(ExpIII_2PG, columns_to_test, log_transform=True)
+
+
+
+
+### == Figure 4A == ### -> Histograme of cell diameter
+def plot_histogram_sex(folder_path, col_x):
+    import glob
+    import os
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+    from datetime import datetime
+
+    csv_files = sorted(glob.glob(os.path.join(folder_path, "*.csv")))
+    column_to_plot = col_x
+
+    if len(csv_files) < 12:
+        print("Warning: Fewer than 12 CSV files found.")
+
+    # Titles used only to assign male/female groups
+    titles = [
+        "Exp 1_M - Sample 1", "Exp 1_F - Sample 1", "Exp 1_M - Sample 2", "Exp 1_F - Sample 2",
+        "Exp 2_M - Sample 1", "Exp 2_F - Sample 1", "Exp 2_M - Sample 2", "Exp 2_F - Sample 2",
+        "Exp 3_M - Sample 1", "Exp 3_F - Sample 1", "Exp 3_M - Sample 2", "Exp 3_F - Sample 2"
+    ]
+
+    colors = {
+        "Male": "#1f77b4",
+        "Female": "#d62728"
+    }
+
+    # Collect data for males and females
+    male_data = []
+    female_data = []
+
+    for i, file in enumerate(csv_files[:12]):
+        df = pd.read_csv(file)
+        if column_to_plot in df.columns:
+            data = df[column_to_plot].dropna()
+            if "M" in titles[i]:
+                male_data.append(data)
+            elif "F" in titles[i]:
+                female_data.append(data)
+
+    # Combine male and female data
+    male_combined = pd.concat(male_data)
+    female_combined = pd.concat(female_data)
+
+    plt.figure(figsize=(8, 6))
+
+    # Plot combined histograms for Male and Female
+    plt.hist(male_combined, bins=40, color=colors["Male"], edgecolor='black', alpha=0.7, label='Male')
+    plt.hist(female_combined, bins=40, color=colors["Female"], edgecolor='black', alpha=0.7, label='Female')
+
+    plt.xlabel("Diameter (µm)", fontsize=16)
+    plt.ylabel("Frequency", fontsize=16)
+    plt.xticks(fontsize=14)  # Make x-axis numbers bigger
+    plt.yticks(fontsize=14)  # Make y-axis numbers bigger
+    plt.legend(fontsize=16)
+
+    plt.tight_layout()
+
+    # Save combined histogram
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    combined_path = os.path.expanduser(f"~/Desktop/combined_histogram_{timestamp}.png")
+    plt.savefig(combined_path, dpi=300)
+    print(f"Combined histogram saved to: {combined_path}")
+
+    plt.show()
+
+
+plot_histogram_sex(data_folder, "diameter")
+
+
+### == Figure 4B == ### Box plot compare the mean of each signal intensity between sexes
+
+def plot_fluorescence(g4_cd36_male, g4_cd36_female, hif_male, hif_female, fasn_male, fasn_female, plot_type="box"):
+    def load_and_rename(file_list, sex, marker_map):
+        df_list = []
+        for file in file_list:
+            df = pd.read_csv(file)
+            available = [col for col in marker_map.keys() if col in df.columns]
+            df = df[available].copy()
+            df.rename(columns={k: marker_map[k] for k in available}, inplace=True)
+            df["Sex"] = sex
+            df_list.append(df)
+        return pd.concat(df_list, ignore_index=True)
+
+    g4_cd36_map = {"mean_488[/µm²]": "G4", "mean_647[/µm²]": "CD36"}
+    hif_map = {"mean_568[/µm²]": "HIF-1α"}
+    fasn_map = {"mean_568[/µm²]": "Fasn"}
+
+    g4_cd36_m = load_and_rename(g4_cd36_male, "Male", g4_cd36_map)
+    g4_cd36_f = load_and_rename(g4_cd36_female, "Female", g4_cd36_map)
+    hif_m = load_and_rename(hif_male, "Male", hif_map)
+    hif_f = load_and_rename(hif_female, "Female", hif_map)
+    fasn_m = load_and_rename(fasn_male, "Male", fasn_map)
+    fasn_f = load_and_rename(fasn_female, "Female", fasn_map)
+
+    full_df = pd.concat([g4_cd36_m, g4_cd36_f, hif_m, hif_f, fasn_m, fasn_f], ignore_index=True)
+    melt_df = full_df.melt(id_vars="Sex", var_name="Channel", value_name="Fluorescence")
+
+    plt.figure(figsize=(8, 6))
+
+    if plot_type == "box":
+        ax = sns.boxplot(data=melt_df, x="Channel", y="Fluorescence", hue="Sex",
+                         palette={"Male": "cornflowerblue", "Female": "lightcoral"}, dodge=True, showfliers=False)
+    elif plot_type == "bar":
+        ax = sns.barplot(data=melt_df, x="Channel", y="Fluorescence", hue="Sex",
+                         palette={"Male": "cornflowerblue", "Female": "lightcoral"}, dodge=True, errorbar="sd")
+    else:
+        raise ValueError("plot_type must be 'box' or 'bar'")
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles[:2], labels[:2], fontsize=16)
+
+    for channel in melt_df["Channel"].unique():
+        male_vals = melt_df[(melt_df["Channel"] == channel) & (melt_df["Sex"] == "Male")]["Fluorescence"].dropna()
+        female_vals = melt_df[(melt_df["Channel"] == channel) & (melt_df["Sex"] == "Female")]["Fluorescence"].dropna()
+
+        if len(male_vals) > 0 and len(female_vals) > 0:
+            u_stat, p_val = mannwhitneyu(male_vals, female_vals, alternative="two-sided")
+            print(f"{channel} — Mann–Whitney U = {u_stat:.2f}, p = {p_val:.4f}")
+        else:
+            print(
+                f"{channel} — Skipped test: not enough valid data (Male n={len(male_vals)}, Female n={len(female_vals)})")
+
+    plt.ylabel("Mean Intensity", fontsize=16)
+    plt.xlabel("", fontsize=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.gca().set_xticklabels(
+        ['LM048' if label.get_text() == 'G4' else label.get_text() for label in plt.gca().get_xticklabels()],
+        fontsize=14
+    )
+    plt.tight_layout()
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    desktop_path = os.path.expanduser(f"~/Desktop/boxplot_{timestamp}.png")
+    plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {desktop_path}")
+    plt.show()
+
+
+# Define file groups
+files_M_1E = [ExpII_1E, ExpIII_1E, ExpIV_1E]       # hif-1a
+files_F_1PG = [ExpI_1PG, ExpII_1PG, ExpIII_1PG]    # hif-1a
+
+files_M_2E = [ExpII_2E, ExpIII_2E, ExpIV_2E]       # fasn
+files_F_2PG = [ExpI_2PG, ExpII_2PG, ExpIII_2PG]    # fasn
+
+files_M_all = files_M_1E + files_M_2E
+files_F_all = files_F_1PG + files_F_2PG
+
+plot_fluorescence(
+    g4_cd36_male=files_M_all,
+    g4_cd36_female=files_F_all,
+    hif_male=files_M_1E,
+    hif_female=files_F_1PG,
+    fasn_male=files_M_2E,
+    fasn_female=files_F_2PG,
+    plot_type="box"
+)
+
+
+
+def mann_whitney_u_test(df):
+    results = {}
+    # Loop over each pair of columns for Q1 to Q4
+    for question in ['Q1', 'Q2', 'Q3', 'Q4']:
+        male_col = f'{question}_Male'
+        female_col = f'{question}_Female'
+
+        # Perform Mann-Whitney U test
+        stat, p_value = mannwhitneyu(df[male_col], df[female_col])
+
+        # Store the result in a dictionary
+        results[question] = {'U-statistic': stat, 'p-value': p_value}
+
+    return results
+
+
+### == Figure s2 == ### -> cell size (diameter) and sum intensity
+def signal_diameter(files, comparisons, labels, colors, xlabel, ylabel):
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    scatter_handles = []
+    r_handles = []
+
+    for i, (file, (col_x, col_y)) in enumerate(zip(files, comparisons)):
+        df = pd.read_csv(file)
+        df['sum_intensity'] = np.pi * df['diameter'] ** 2 * df[col_y]
+
+        x = df[col_x].values.reshape(-1, 1)
+        y = df['sum_intensity'].values
+
+        # Correlation and regression
+        pearson_corr, p_val = pearsonr(x.flatten(), y)
+        model = LinearRegression()
+        model.fit(x, y)
+        y_pred = model.predict(x)
+        r_squared = model.score(x, y)
+
+        print(f"{labels[i]} - Pearson r = {pearson_corr:.3f} (p = {p_val:.4f}), R² = {r_squared:.3f}")
+
+        # Left plot: scatter + regression line (R² in legend)
+        ax1.scatter(x.flatten(), y, alpha=0.6, color=colors[i])
+        sns.regplot(x=x.flatten(), y=y, scatter=False, ax=ax1, line_kws={'color': colors[i]})
+        scatter_handles.append(
+            plt.Line2D([], [], marker='o', linestyle='None', color=colors[i],
+                       label=f"{labels[i]}")
+        )
+
+        # Right plot: regression line only (r in legend)
+        sns.regplot(x=x.flatten(), y=y, scatter=False, ax=ax2, line_kws={'color': colors[i]})
+        r_handles.append(
+            plt.Line2D([], [], color=colors[i], linestyle='-',
+                       label=f"{labels[i]} (r={pearson_corr:.2f})")
+        )
+
+    # Set axis labels and titles
+    for ax in (ax1, ax2):
+        ax.set_xlabel(xlabel, fontsize=14)
+        ax.set_ylabel(ylabel, fontsize=14)
+        ax.tick_params(axis='both', labelsize=12)
+
+    ax1.set_title(f"{ylabel} vs. Diameter", fontsize=14)
+    ax2.set_title(f"{ylabel} vs. Diameter", fontsize=14)
+
+    ax1.legend(handles=scatter_handles, loc='upper right', fontsize=12)
+    ax2.legend(handles=r_handles, loc='upper right', fontsize=12)
+
+    plt.tight_layout()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_path = os.path.expanduser(f"~/Desktop/signal_diameter_{timestamp}.png")
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {save_path}")
+    plt.show()
+
+
+
+files_all = [ExpII_1E, ExpII_2E, ExpIII_1E, ExpIII_2E, ExpIV_1E, ExpIV_2E,
+             ExpI_1PG, ExpI_2PG, ExpII_1PG, ExpII_2PG, ExpIII_1PG, ExpIII_2PG]
+colors_all = ["cornflowerblue", "cornflowerblue", "royalblue", "royalblue", "mediumblue", "mediumblue",
+              "lightcoral", "lightcoral", "indianred", "indianred", "brown", "brown"]
+labels_all = ["Exp1_EPI_s1","Exp1_EPI_s2", "Exp2_EPI_s1", "Exp2_EPI_s2", "Exp3_EPI_s1", "Exp3_EPI_s2",
+              "Exp1_PG_s1", "Exp1_PG_s2", "Exp2_PG_s1", "Exp2_PG_s2", "Exp3_PG_s1", "Exp3_PG_s2"]
+
+comparisons_4 = [("diameter", "mean_488[/µm²]")] * len(files_all)
+signal_diameter(files_all, comparisons_4, labels_all, colors_all, xlabel="Diameter [µm]", ylabel="LM048")
+
+file_S1 = [ExpII_1E, ExpIII_1E, ExpIV_1E, ExpI_1PG, ExpII_1PG, ExpIII_1PG] # Sample 1
+labels_1 = ["Exp1_EPI", "Exp2_EPI", "Exp3_EPI", "Exp1_PG", "Exp2_PG", "Exp3_PG"]
+colors_1 = ["cornflowerblue", "royalblue", "mediumblue", "lightcoral", "indianred", "brown"]
+file_S2 = [ExpII_2E, ExpIII_2E, ExpIV_2E, ExpI_2PG, ExpII_2PG, ExpIII_2PG] # Sample 2
+
+comparisons_5 = [("diameter", "mean_568[/µm²]")] * len(file_S1)
+signal_diameter(file_S1, comparisons_5, labels_1, colors_1, xlabel="Diameter [µm]", ylabel="HIF-1α")
+signal_diameter(file_S2, comparisons_5, labels_1, colors_1, xlabel="Diameter [µm]", ylabel="Fasn")
+
+
+comparisons_6 = [("diameter", "mean_647[/µm²]")] * len(files_all)
+signal_diameter(files_all, comparisons_6, labels_all, colors_all, xlabel="Diameter[µm]", ylabel="CD36")
+
+
+### == Figure 4C-F == ### -> correlation of mean intensity of different stain
+def mean_linear_regression(male_files, female_files, comparisons, xlabel, ylabel):
+    fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))  # Single plot
+
+    # Combine all data
+    male_df = pd.concat([pd.read_csv(file) for file in male_files], ignore_index=True)
+    female_df = pd.concat([pd.read_csv(file) for file in female_files], ignore_index=True)
+
+    datasets = [
+        ("Male", "cornflowerblue", "#1f77b4", male_df),
+        ("Female", "lightcoral", "#d62728", female_df)
+    ]
+
+    max_val = 0
+    scatter_handles = []
+    line_handles = []
+
+    for col_x, col_y in comparisons:
+        for label, scatter_color, line_color, df in datasets:
+            x = df[col_x].values.reshape(-1, 1)
+            y = df[col_y].values
+
+            # Pearson correlation
+            pearson_corr, pearson_p = pearsonr(x.flatten(), y)
+
+            # Linear regression
+            model = LinearRegression()
+            model.fit(x, y)
+            y_pred = model.predict(x)
+            r_squared = model.score(x, y)
+
+            print(f"{label} - Pearson r = {pearson_corr:.3f} (p = {pearson_p:.3f})")
+            print(f"  R²: {r_squared:.4f}\n")
+
+            max_val = max(max_val, x.max(), y.max())
+
+            scatter = ax.scatter(x.flatten(), y, s=30, alpha=0.8, color=scatter_color)
+            line = sns.regplot(x=x.flatten(), y=y, scatter=False, ax=ax, line_kws={'color': line_color})
+
+            # Create legend entries manually
+            line_handles.append(
+                plt.Line2D([], [], color=line_color, linestyle='-',
+                           label=f"{label} (r={pearson_corr:.2f})")
+            )
+
+    max_tick = np.ceil(max_val / 5000) * 5000
+
+    tick_values = np.arange(0, max_tick + 1, 5000)  # From 0 to max_tick, step 5000
+
+    ax.set_xticks(tick_values)
+    ax.set_yticks(tick_values)
+    ax.plot([0, max_val], [0, max_val], linestyle=":", color="black", linewidth=1)
+    ax.set_xlabel(xlabel, fontsize=16)
+    ax.set_ylabel(ylabel, fontsize=16)
+    ax.set_title(f"{xlabel} vs. {ylabel}", fontsize=16)
+    ax.tick_params(axis='both', labelsize=14)
+
+    # Combine legend handles and show legend
+    ax.legend(handles=scatter_handles + line_handles, loc="upper right", fontsize=14)
+
+    plt.tight_layout(pad=0.5)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    desktop_path = os.path.expanduser(f"~/Desktop/correlation_{timestamp}.png")
+    plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {desktop_path}")
+    plt.show()
+
+
+
+files_M_s1 = [ExpII_1E, ExpIII_1E, ExpIV_1E]
+files_F_s1 = [ExpI_1PG, ExpII_1PG, ExpIII_1PG]
+comparisons_GO = [("mean_488[/µm²]", "mean_568[/µm²]")]
+comparisons_OR = [("mean_568[/µm²]", "mean_647[/µm²]")]
+
+mean_linear_regression(files_M_s1, files_F_s1, comparisons_GO, xlabel="LM048", ylabel="HIF-1α")
+mean_linear_regression(files_M_s1, files_F_s1, comparisons_OR, xlabel="HIF-1α", ylabel="CD36")
+
+files_M_s2 = [ExpII_2E, ExpIII_2E, ExpIV_2E]
+files_F_s2 = [ExpI_2PG, ExpII_2PG, ExpIII_2PG]
+mean_linear_regression(files_M_s2, files_F_s2, comparisons_GO, xlabel="LM048", ylabel="Fasn")
+mean_linear_regression(files_M_s2, files_F_s2, comparisons_OR, xlabel="Fasn", ylabel="CD36")
+
+comparisons_GR = [("mean_488[/µm²]", "mean_647[/µm²]")]
+files_M_all = [ExpII_1E, ExpIII_1E, ExpIV_1E, ExpII_2E, ExpIII_2E, ExpIV_2E]
+files_F_all = [ExpI_1PG, ExpII_1PG, ExpIII_1PG, ExpI_2PG, ExpII_2PG, ExpIII_2PG]
+
+mean_linear_regression(files_M_all, files_F_all, comparisons_GR, xlabel="LM048", ylabel="CD36")
+
+
+
+### == Figure S3 == ### Overall staining correlaiton between sexes in each experiment
+def linear_regression(files, comparisons, labels, colors, xlabel, ylabel):
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+
+    max_val = 0
+
+    for i, (file, (col_x, col_y)) in enumerate(zip(files, comparisons)):
+        df = pd.read_csv(file)
+        x = df[col_x].values.reshape(-1, 1)
+        y = df[col_y].values
+
+        # Update max values
+        max_val = max(max_val, x.max(), y.max())
+
+        # Compute Pearson correlation
+        r, p_value = pearsonr(x.flatten(), y)
+
+        # Linear regression
+        model = LinearRegression()
+        model.fit(x, y)
+        y_pred = model.predict(x)
+        r_squared = model.score(x, y)
+        slope = model.coef_[0]
+        intercept = model.intercept_
+
+        # Print stats
+        print(f"Dataset: {labels[i]}")
+        print(f"  Slope: {slope:.4f}")
+        print(f"  Intercept: {intercept:.4f}")
+        print(f"  Pearson r: {r:.4f} (p={p_value:.4e})")
+        print(f"  R²: {r_squared:.4f}")
+        print("")
+
+        # Plot 1 -> Scatter plot with regression line and R²
+        ax1.scatter(x, y, alpha=0.5, color=colors[i], label=f"{labels[i]}")
+        sns.regplot(x=x.flatten(), y=y, scatter=False, ax=ax1, line_kws={'color': colors[i]})
+
+        # Plot 2 -> Regression line with Pearson r
+        ax2.plot(x, y_pred, linestyle="-", color=colors[i], label=f"{labels[i]} (r={r:.2f})")
+
+    max_tick = np.ceil(max_val / 5000) * 5000
+
+    tick_values = np.arange(0, max_tick + 1, 5000)  # From 0 to max_tick, step 5000
+
+    for ax in (ax1, ax2):
+        ax.set_xticks(tick_values)
+        ax.set_yticks(tick_values)
+        ax.plot([0, max_val], [0, max_val], linestyle=":", color="black", linewidth=1)
+        ax.set_xlabel(xlabel, fontsize=14)
+        ax.set_ylabel(ylabel, fontsize=14)
+        ax.set_title(f"{xlabel} vs. {ylabel}", fontsize=16)
+        ax.legend(fontsize=12)
+
+    plt.tight_layout()
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    desktop_path = os.path.expanduser(f"~/Desktop/correlation_{timestamp}.png")
+    plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {desktop_path}")
+    plt.show()
+
+
+
+file_S1 = [ExpII_1E, ExpIII_1E, ExpIV_1E, ExpI_1PG, ExpII_1PG, ExpIII_1PG] # Sample 1
+labels_1 = ["Exp1_EPI", "Exp2_EPI", "Exp3_EPI", "Exp1_PG", "Exp2_PG", "Exp3_PG"]
+colors_1 = ["cornflowerblue", "royalblue", "mediumblue", "lightcoral", "indianred", "brown"]
+
+#LM048 vs. Hif-1a
+comparisons_1 = [("mean_488[/µm²]", "mean_568[/µm²]")] * len(file_S1) # Green vs. Orange
+linear_regression(file_S1, comparisons_1, labels_1, colors_1, xlabel="LM048", ylabel="HIF-1α")
+
+# Hif-1a vs. CD36
+comparisons_2 = [("mean_568[/µm²]", "mean_647[/µm²]")] * len(file_S1) # Orange vs. Red
+linear_regression(file_S1, comparisons_2, labels_1, colors_1, xlabel="HIF-1α", ylabel="CD36")
+
+
+# LM048 vs. Fasn
+file_S2 = [ExpII_2E, ExpIII_2E, ExpIV_2E, ExpI_2PG, ExpII_2PG, ExpIII_2PG] # Sample 2
+linear_regression(file_S2, comparisons_1, labels_1, colors_1, xlabel="LM048", ylabel="Fasn")
+
+
+# Fasn vs. CD36
+linear_regression(file_S2, comparisons_2, labels_1, colors_1, xlabel="Fasn", ylabel="CD36")
+
+
+# CD36 vs. LM048 -> both samples have it
+files_all = [ExpII_1E, ExpII_2E, ExpIII_1E, ExpIII_2E, ExpIV_1E, ExpIV_2E,
+             ExpI_1PG, ExpI_2PG, ExpII_1PG, ExpII_2PG, ExpIII_1PG, ExpIII_2PG]
+
+comparisons_3 = [("mean_488[/µm²]", "mean_647[/µm²]")] * len(files_all) # Green vs. Red
+
+labels_all = ["Exp1_EPI_s1","Exp1_EPI_s2", "Exp2_EPI_s1", "Exp2_EPI_s2", "Exp3_EPI_s1", "Exp3_EPI_s2",
+              "Exp1_PG_s1", "Exp1_PG_s2", "Exp2_PG_s1", "Exp2_PG_s2", "Exp3_PG_s1", "Exp3_PG_s2"]
+colors_all = ["cornflowerblue", "cornflowerblue", "royalblue", "royalblue", "mediumblue", "mediumblue",
+              "lightcoral", "lightcoral", "indianred", "indianred", "brown", "brown"]
+linear_regression(files_all, comparisons_3, labels_all, colors_all, xlabel="LM048", ylabel="CD36")
+
+
+### == Figure S4 == ### 4 quadrants classification in each experiment
+def compute_median(file_list, column_name):
+    values = []
+
+    for file in file_list:
+        df = pd.read_csv(file)
+        if column_name in df.columns:
+            values.extend(df[column_name].dropna().values)
+        else:
+            print(f"Warning:'{column_name}' not found in {file}")
+
+    if values:
+        median_val = pd.Series(values).median()
+        print(f"Median of '{column_name}' across {len(file_list)} files: {median_val}")
+        return median_val
+    else:
+        raise ValueError(f"No values found for column '{column_name}' in provided files.")
+
+
+files_M = [ExpII_1E, ExpII_2E, ExpIII_1E, ExpIII_2E, ExpIV_1E, ExpIV_2E]
+files_F = [ExpI_1PG, ExpI_2PG, ExpII_1PG, ExpII_2PG, ExpIII_1PG, ExpIII_2PG]
+
+files_M_hif = [ExpII_1E, ExpIII_1E, ExpIV_1E]
+files_M_fasn = [ExpII_2E, ExpIII_2E, ExpIV_2E]
+
+files_F_hif = [ExpI_1PG, ExpII_1PG, ExpIII_1PG]
+files_F_fasn = [ExpI_2PG, ExpII_2PG, ExpIII_2PG]
+
+files_all = files_M + files_F
+files_hif_all = files_F_hif + files_M_hif
+files_fasn_all = files_F_fasn + files_M_fasn
+
+# Both male and female data
+medium_g4 = compute_median(files_all, "mean_488[/µm²]")
+medium_hif = compute_median(files_hif_all, "mean_568[/µm²]")
+medium_fasn = compute_median(files_fasn_all, "mean_568[/µm²]")
+medium_cd36 = compute_median(files_all, "mean_647[/µm²]")
+
+
+
+# 12 subplots
+# Channels used
+channel = ["mean_568[/µm²]", "mean_647[/µm²]"]  # 568: HIF-1a or Fasn, 647: CD36
+marker_1 = ["HIF-1a", "CD36"]
+marker_2 = ["Fasn", "CD36"]
+
+# Define fixed medians
+medium_all_s1 = {
+    "mean_568[/µm²]": medium_hif,
+    "mean_647[/µm²]": medium_cd36
+}
+medium_all_s2 = {
+    "mean_568[/µm²]": medium_fasn,
+    "mean_647[/µm²]": medium_cd36
+}
+
+# Arrange files by row and column layout
+experiment_files = [
+    [ExpII_1E, ExpI_1PG, ExpII_2E, ExpI_2PG],
+    [ExpIII_1E, ExpII_1PG, ExpIII_2E, ExpII_2PG],
+    [ExpIV_1E, ExpIII_1PG, ExpIV_2E, ExpIII_2PG]
+]
+
+titles = [
+    ["Exp1_EPI_1", "Exp1_PG_1", "Exp1_EPI_2", "Exp1_PG_2"],
+    ["Exp2_EPI_1", "Exp2_PG_1", "Exp2_EPI_2", "Exp2_PG_2"],
+    ["Exp3_EPI_1", "Exp3_PG_1", "Exp3_EPI_2", "Exp3_PG_2"]
+]
+
+# Define colors per column
+column_colors = ["royalblue", "firebrick", "royalblue", "firebrick"]
+
+# Create 3x4 subplots
+fig, axs = plt.subplots(3, 4, figsize=(20, 15))
+
+for row in range(3):  # ExpI, II, III
+    for col in range(4):  # 1E, 2E, 1PG, 2PG
+        file_path = experiment_files[row][col]
+        title = titles[row][col]
+        color = column_colors[col]
+
+        # Choose marker and median
+        if "EPI_1" in title or "PG_1" in title:
+            labels = marker_1
+            fixed_medians = medium_all_s1
+        else:
+            labels = marker_2
+            fixed_medians = medium_all_s2
+
+        # Read data
+        df = pd.read_csv(file_path)
+        x = df[channel[0]]
+        y = df[channel[1]]
+
+        # Medians
+        median_x = fixed_medians.get(channel[0], np.median(x))
+        median_y = fixed_medians.get(channel[1], np.median(y))
+
+        # Quadrant counts
+        q1 = np.sum((x > median_x) & (y > median_y))
+        q2 = np.sum((x < median_x) & (y > median_y))
+        q3 = np.sum((x < median_x) & (y < median_y))
+        q4 = np.sum((x > median_x) & (y < median_y))
+        total = len(x)
+
+        # Percentages
+        q1_pct = q1 / total * 100
+        q2_pct = q2 / total * 100
+        q3_pct = q3 / total * 100
+        q4_pct = q4 / total * 100
+
+        print(f"{title}:")
+        print(f"  Q1 (High-{labels[0]}, High-{labels[1]}): {q1_pct:.1f}%")
+        print(f"  Q2 (Low-{labels[0]}, High-{labels[1]}):  {q2_pct:.1f}%")
+        print(f"  Q3 (Low-{labels[0]}, Low-{labels[1]}):  {q3_pct:.1f}%")
+        print(f"  Q4 (High-{labels[0]}, Low-{labels[1]}): {q4_pct:.1f}%\n")
+
+        # Plotting
+        ax = axs[row, col]
+        ax.scatter(x, y, color=color, alpha=0.5, label=f"{labels[0]} vs {labels[1]}", marker='o')
+        ax.axvline(median_x, color="black", linestyle="-", linewidth=1)
+        ax.axhline(median_y, color="black", linestyle="-", linewidth=1)
+
+        ax.set_xlabel(labels[0], fontsize=12)
+        ax.set_ylabel(labels[1], fontsize=12)
+        ax.set_title(title, fontsize=14)
+        ax.legend(loc="upper right")
+
+# Layout and display
+plt.tight_layout()
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+desktop_path = os.path.expanduser(f"~/Desktop/correlation_{timestamp}.png")
+plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+print(f"Figure saved to: {desktop_path}")
+plt.show()
+
+
+### == Figure 5 == ### Sex-specific distribution and cell size of adipocyte subpopulations in each subtype
+def plot_gender_comparison_subtypes(df, ylim):
+    conditions = ['LGA', 'LSA_s1', 'LSA_s2', 'SLSA']
+    male_color = 'cornflowerblue'
+    female_color = 'lightcoral'
+
+    fig, axes = plt.subplots(1, 4, figsize=(22, 5))  # One subplot per condition
+
+    for i, cond in enumerate(conditions):
+        ax = axes[i]
+        male_col = f"{cond}_Male"
+        female_col = f"{cond}_Female"
+
+        for _, row in df.iterrows():
+            male = row[male_col]
+            female = row[female_col]
+
+            x_vals = [0, 0.1]  # Closer spacing between male and female
+
+            # Connecting line
+            ax.plot(x_vals, [male, female], color='black', linewidth=1, alpha=0.6)
+            # Scatter points
+            ax.scatter(x_vals[0], male, color=male_color, s=50, zorder=3)
+            ax.scatter(x_vals[1], female, color=female_color, s=50, zorder=3)
+
+        ax.set_title(cond, fontsize=16)
+        ax.set_ylim(0, ylim)
+        ax.set_xticks(x_vals)
+        ax.set_xticklabels(["Male", "Female"])
+        ax.set_ylabel("Percentage" if i == 0 else "", fontsize=16)
+        ax.set_xlabel("")
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(axis='both', labelsize=12)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    # Save to Desktop with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    desktop_path = os.path.expanduser(f"~/Desktop/boxplot_{timestamp}.png")
+    plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {desktop_path}")
+    plt.show()
+
+
+percentage = {
+    "Experiment": ["Exp1", "Exp2", "Exp3"],
+    "LGA_Male": [10.3, 2, 8.9],
+    "LGA_Female": [20.5, 12.9, 19.4],
+    "LSA_s1_Male": [0.4, 40.5, 14.9],
+    "LSA_s1_Female": [1.6, 24.1, 9.3],
+    "LSA_s2_Male": [16, 27, 18.2],
+    "LSA_s2_Female": [7.9, 6, 8.1],
+    "SLSA_Male": [13.2, 15.1, 11.4],
+    "SLSA_Female": [43.9, 61.3, 52.1],
+}
+
+df = pd.DataFrame(percentage)
+
+plot_gender_comparison_subtypes(df, ylim=70)
+
+
+### == Figure S5 == ### Sex-specific distribution of adipocyte subpopulations across experimental conditions
+def plot_gender_comparison(df, title, ylim, subplot_titles=None):
+    quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+    male_color = 'cornflowerblue'
+    female_color = 'lightcoral'
+
+    if subplot_titles is None:
+        subplot_titles = quarters  # fallback to Q1-Q4 if none provided
+
+    fig, axes = plt.subplots(1, 4, figsize=(22, 5))  # Independent y-axis for each
+    for i, q in enumerate(quarters):
+        ax = axes[i]
+        male_col = f"{q}_Male"
+        female_col = f"{q}_Female"
+
+        for _, row in df.iterrows():
+            male = row[male_col]
+            female = row[female_col]
+
+            # Connecting line
+            ax.plot(["Male", "Female"], [male, female], color='black', linewidth=1, alpha=0.6)
+            # Scatter points
+            ax.scatter("Male", male, color=male_color, s=50, zorder=3)
+            ax.scatter("Female", female, color=female_color, s=50, zorder=3)
+
+        ax.set_title(subplot_titles[i], fontsize=14)
+        ax.set_ylim(0, ylim)
+        ax.set_ylabel("Percentage" if i == 0 else "", fontsize=16)
+        ax.set_xlabel("")
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(axis='both', labelsize=10)
+
+    fig.suptitle(title, fontsize=18)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    desktop_path = os.path.expanduser(f"~/Desktop/percentage_{timestamp}.png")
+    plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {desktop_path}")
+    plt.show()
+
+
+custom_titles_s1 = ["Q1 (SLSA)", "Q2 (LSA)", "Q3", "Q4"]
+
+percentage_s1 = {
+    "Experiment": ["Exp1", "Exp2", "Exp3"],
+    "Q1_Male": [13.2, 15.1, 11.4],
+    "Q1_Female":  [43.9, 61.3, 52.1],
+    "Q2_Male": [0.4, 40.5, 14.9],
+    "Q2_Female": [1.6, 24.1, 9.3],
+    "Q3_Male": [42.2, 42.7, 66.3],
+    "Q3_Female": [22.2, 21.4, 12.2],
+    "Q4_Male": [44.2, 1.8, 7.2],
+    "Q4_Female": [9.8, 13.4, 34.1],
+}
+df_s1 = pd.DataFrame(percentage_s1)
+plot_gender_comparison(df_s1, title="Male vs Female Percentage by Quarter (S1)", ylim=70,
+                       subplot_titles=custom_titles_s1)
+
+
+percentage_s2 = {
+    "Experiment": ["Exp1", "Exp2", "Exp3"],
+    "Q1_Male": [18.6, 11, 23.2],
+    "Q1_Female": [43.7, 64.8, 43.3],
+    "Q2_Male": [16, 27, 18.2],
+    "Q2_Female": [7.9, 6, 8.1],
+    "Q3_Male": [55, 60, 49.7],
+    "Q3_Female": [27.8, 16.8, 29.2],
+    "Q4_Male": [10.3, 2, 8.9],
+    "Q4_Female": [20.5, 12.9, 19.4],
+}
+df_s2 = pd.DataFrame(percentage_s2)
+
+custom_titles_s2 = ["Q1", "Q2 (LSA)", "Q3", "Q4 (LGA)"]
+plot_gender_comparison(df_s2, title="Male vs Female Percentage by Quarter (S2)", ylim=70,
+                       subplot_titles=custom_titles_s2)
+
+
+
+### == Figure 6 == ### respective G4 in each subpopulation
+def bar_quadrant(y_label, folder_path=".", quadrant_files=None):
+    if quadrant_files is None:
+        quadrant_files = ["G4 in Q1.xlsx", "G4 in Q2.xlsx", "G4 in Q3.xlsx", "G4 in Q4.xlsx"]
+
+    np.random.seed(42)
+
+    # Define plots: (file_index, sample_type, heading)
+    selected_plots = [
+        (3, "Sample2", "LGA"),      # Q4 from Sample 2
+        (1, "Sample1", "LSA_s1"),   # Q2 from Sample 1
+        (1, "Sample1", "LSA_s2"),   # Q2 from Sample 2 (different columns)
+        (0, "Sample1", "SLSA")      # Q1 from Sample 1
+    ]
+
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5), sharey=True)
+
+    for i, (file_index, sample_type, heading) in enumerate(selected_plots):
+        file_name = quadrant_files[file_index]
+        file_path = os.path.join(folder_path, file_name)
+
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            continue
+
+        df = pd.read_excel(file_path)
+
+        # Choose correct columns based on heading
+        if sample_type == "Sample1":
+            data = df.iloc[:, 6:12] if heading == "LSA_s2" else df.iloc[:, 0:6]
+        else:
+            data = df.iloc[:, 6:12]
+
+        means = data.mean()
+
+        print(f"\n--- {heading} ({sample_type}) Mean Values ({data.columns[0]}–{data.columns[-1]}) ---")
+        for col_name, val in zip(data.columns, means):
+            print(f"{col_name}: {val:.2f}")
+
+        male_means = means[:3]
+        female_means = means[3:6]
+
+        ax = axes[i]
+
+        x_pos = np.arange(1, 7)
+        ax.bar(x_pos[:3], male_means, color='cornflowerblue', label='Male')
+        ax.bar(x_pos[3:], female_means, color='lightcoral', label='Female')
+
+        for j, col in enumerate(data.columns):
+            y_vals = data[col].dropna().values
+            x_jitter = np.random.normal(loc=x_pos[j], scale=0.05, size=len(y_vals))
+            ax.scatter(x_jitter, y_vals, color='black', s=15, alpha=0.5)
+
+        ax.set_title(heading, fontsize=16)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(['Exp 1', 'Exp 2', 'Exp 3', 'Exp 1', 'Exp 2', 'Exp 3'], rotation=45)
+        ax.set_ylabel(y_label if i == 0 else "", fontsize=16)
+        ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+        if i == 0:
+            legend = ax.legend(fontsize=16)
+
+    plt.tight_layout()
+    # Save to Desktop with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    desktop_path = os.path.expanduser(f"~/Desktop/boxplot_{timestamp}.png")
+    plt.savefig(desktop_path, dpi=300, bbox_inches='tight')
+    print(f"Figure saved to: {desktop_path}")
+    plt.show()
+
+
+bar_quadrant(y_label="GLUT 4",
+             folder_path='/Users/dinosaur.z/Desktop/Quadrant data (population median)/G4',
+             quadrant_files=["G4 in Q1.xlsx", "G4 in Q2.xlsx", "G4 in Q3.xlsx", "G4 in Q4.xlsx"])
+
+
+def plot_folder_scatter_regression(
+        diameter_folder, marker_folder, y_label, marker_name,
+        save=False):
+    subplots_order = ['LGA', 'LSA_s1', 'LSA_s2', 'SLSA']
+    quadrant_map = {
+        'LGA': ('Q4', (6, 12)),
+        'LSA_s1': ('Q2', (0, 6)),
+        'LSA_s2': ('Q2', (6, 12)),
+        'SLSA': ('Q1', (0, 6))
+    }
+
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5), sharey=False)
+
+    for i, subplot_name in enumerate(subplots_order):
+        q, sample_range = quadrant_map[subplot_name]
+
+        diameter_file = os.path.join(diameter_folder, f"Diameter in {q}.xlsx")
+        marker_file = os.path.join(marker_folder, f"{marker_name} in {q}.xlsx")
+
+        if not os.path.exists(diameter_file) or not os.path.exists(marker_file):
+            print(f"Missing file for {q}")
+            continue
+
+        diam_df = pd.read_excel(diameter_file)
+        marker_df = pd.read_excel(marker_file)
+
+        diam_data = diam_df.iloc[:, sample_range[0]:sample_range[1]]
+        marker_data = marker_df.iloc[:, sample_range[0]:sample_range[1]]
+
+        ax = axes[i]
+
+        male_x, male_y = [], []
+        female_x, female_y = [], []
+
+        for idx, (diam_col, marker_col) in enumerate(zip(diam_data.columns, marker_data.columns)):
+            diam_vals = diam_data[diam_col]
+            marker_vals = marker_data[marker_col]
+
+            valid = ~diam_vals.isna() & ~marker_vals.isna()
+            x = diam_vals[valid]
+            y = marker_vals[valid]
+
+            sex = "Male" if idx < 3 else "Female"
+            color = 'cornflowerblue' if sex == "Male" else 'lightcoral'
+
+            ax.scatter(x, y, color=color, alpha=0.7, s=30)
+
+            if sex == "Male":
+                male_x.extend(x)
+                male_y.extend(y)
+            else:
+                female_x.extend(x)
+                female_y.extend(y)
+
+        legend_items = []
+
+        # Regression + text for Male
+        if male_x:
+            coeffs = np.polyfit(male_x, male_y, 1)
+            x_range = np.linspace(min(male_x), max(male_x), 100)
+            y_fit = np.polyval(coeffs, x_range)
+            ax.plot(x_range, y_fit, color='#1f77b4', linestyle='--')
+
+            r_m, p_m = pearsonr(male_x, male_y)
+            ax.text(0.05, 0.95, f"Male r = {r_m:.2f}, p = {p_m:.3f}", color='cornflowerblue',
+                    transform=ax.transAxes, fontsize=11, verticalalignment='top')
+            dot_male = ax.scatter([], [], color='cornflowerblue', s=30, label="Male")
+            legend_items.append(dot_male)
+            print(f"{subplot_name} - Male: r = {r_m:.3f}, p = {p_m:.4f}")
+
+        # Regression + text for Female
+        if female_x:
+            coeffs = np.polyfit(female_x, female_y, 1)
+            x_range = np.linspace(min(female_x), max(female_x), 100)
+            y_fit = np.polyval(coeffs, x_range)
+            ax.plot(x_range, y_fit, color='#d62728', linestyle='--')
+
+            r_f, p_f = pearsonr(female_x, female_y)
+            ax.text(0.05, 0.85, f"Female r = {r_f:.2f}, p = {p_f:.3f}", color='lightcoral',
+                    transform=ax.transAxes, fontsize=11, verticalalignment='top')
+            dot_female = ax.scatter([], [], color='lightcoral', s=30, label="Female")
+            legend_items.append(dot_female)
+            print(f"{subplot_name} - Female: r = {r_f:.3f}, p = {p_f:.4f}")
+
+        ax.set_title(subplot_name, fontsize=16)
+        ax.set_xlabel("Diameter (µm)", fontsize=16)
+        ax.tick_params(axis='both', labelsize=14)
+
+        if i == 0:
+            ax.set_ylabel(y_label, fontsize=16)
+
+        ax.legend(handles=legend_items, fontsize=14, loc='lower right')
+        ax.grid(True, linestyle='--', alpha=0.5)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+
+    if save:
+        desktop = os.path.expanduser("~/Desktop")
+        filename = f"{marker_name}_vs_Diameter_Selected_Subpopulations.png"
+        plt.savefig(os.path.join(desktop, filename), dpi=300)
+        print(f"Plot saved to: {filename}")
+
+    plt.show()
+
+
+
+plot_folder_scatter_regression(
+    diameter_folder='/Users/dinosaur.z/Desktop/Quadrant data (population median)/Diameter',
+    marker_folder='/Users/dinosaur.z/Desktop/Quadrant data (population median)/G4',
+    y_label='GLUT 4',
+    marker_name='G4',
+    save=True
+)
+
+
+### == Figure S6 == ### respective G4 in each quadrant 
+def bar_quadrant_all(y_label, folder_path=".", quadrant_files=None,
+                 subplot_titles_s1=None, subplot_titles_s2=None,
+                 save=False):
+    if quadrant_files is None:
+        quadrant_files = [f"G4 in Q{i + 1}.xlsx" for i in range(4)]
+
+    quadrant_labels = [f"Q{i + 1}" for i in range(4)]
+    if subplot_titles_s1 is None:
+        subplot_titles_s1 = quadrant_labels
+    if subplot_titles_s2 is None:
+        subplot_titles_s2 = quadrant_labels
+
+    np.random.seed(42)
+
+    def plot_sample(fig, axes, df_range, sample_title, subplot_titles):
+        fig.suptitle(sample_title, fontsize=16)
+
+        for i, (file_name, custom_title) in enumerate(zip(quadrant_files, subplot_titles)):
+            file_path = os.path.join(folder_path, file_name)
+            if not os.path.exists(file_path):
+                print(f"File not found: {file_path}")
+                continue
+
+            df = pd.read_excel(file_path)
+            data = df.iloc[:, df_range[0]:df_range[1]]
+            means = data.mean()
+
+            print(f"\n--- {custom_title} Mean Values ({data.columns[0]}–{data.columns[-1]}) ---")
+            for col_name, val in zip(data.columns, means):
+                print(f"{col_name}: {val:.2f}")
+
+            male_means = means[:3]
+            female_means = means[3:6]
+
+            ax = axes[i]
+            x_pos = np.arange(1, 7)
+            ax.bar(x_pos[:3], male_means, color='cornflowerblue', label='Male')
+            ax.bar(x_pos[3:], female_means, color='lightcoral', label='Female')
+
+            for j, col in enumerate(data.columns):
+                y_vals = data[col].dropna().values
+                x_jitter = np.random.normal(loc=x_pos[j], scale=0.05, size=len(y_vals))
+                ax.scatter(x_jitter, y_vals, color='black', s=15, alpha=0.5)
+
+            ax.set_title(custom_title, fontsize=14)
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels(data.columns, rotation=45)
+            ax.set_ylabel(y_label)
+            ax.grid(axis='y', linestyle='--', alpha=0.5)
+            if i == 0:
+                ax.legend()
+
+        plt.tight_layout()
+
+        if save:
+            desktop = os.path.expanduser("~/Desktop")
+            filename = f"{y_label.replace(' ', '_')}_{sample_title.replace(' ', '_')}.png"
+            save_path = os.path.join(desktop, filename)
+            plt.savefig(save_path, dpi=300)
+            print(f"Plot saved to: {save_path}")
+
+        plt.show()
+
+    # Sample 1
+    fig1, axes1 = plt.subplots(1, 4, figsize=(20, 5), sharey=True)
+    plot_sample(fig1, axes1, (0, 6), "Sample 1", subplot_titles_s1)
+
+    # Sample 2
+    fig2, axes2 = plt.subplots(1, 4, figsize=(20, 5), sharey=True)
+    plot_sample(fig2, axes2, (6, 12), "Sample 2", subplot_titles_s2)
+
+
+
+bar_quadrant_all(y_label="GLUT 4",
+             folder_path='/Users/dinosaur.z/Desktop/Quadrant data (population median)/G4',
+             quadrant_files=["G4 in Q1.xlsx", "G4 in Q2.xlsx", "G4 in Q3.xlsx", "G4 in Q4.xlsx"],
+             subplot_titles_s1=custom_titles_s1,
+             subplot_titles_s2=custom_titles_s2,
+             save=True
+             )
+
+
+### == Figure S6 == ### respective G4 in each quadrant related to cell size
+def plot_folder_scatter_regression_split_samples(diameter_folder, marker_folder, y_label, marker_name,
+                                                 subplot_titles_s1=None, subplot_titles_s2=None, save=False):
+    quadrants = ['Q1', 'Q2', 'Q3', 'Q4']
+
+    if subplot_titles_s1 is None:
+        subplot_titles_s1 = quadrants
+    if subplot_titles_s2 is None:
+        subplot_titles_s2 = quadrants
+
+    def plot_sample(sample_range, sample_label, subplot_titles):
+        fig, axes = plt.subplots(1, 4, figsize=(20, 5), sharey=False)
+        fig.suptitle(f"GLUT 4 vs Cell Diameter - {sample_label}", fontsize=16)
+
+        for i, q in enumerate(quadrants):
+            diameter_file = os.path.join(diameter_folder, f"Diameter in {q}.xlsx")
+            marker_file = os.path.join(marker_folder, f"{marker_name} in {q}.xlsx")
+
+            if not os.path.exists(diameter_file) or not os.path.exists(marker_file):
+                print(f"Missing file for {q}")
+                continue
+
+            diam_df = pd.read_excel(diameter_file)
+            marker_df = pd.read_excel(marker_file)
+
+            diam_data = diam_df.iloc[:, sample_range[0]:sample_range[1]]
+            marker_data = marker_df.iloc[:, sample_range[0]:sample_range[1]]
+
+            ax = axes[i]
+
+            male_x, male_y = [], []
+            female_x, female_y = [], []
+            plotted_male, plotted_female = False, False
+
+            for idx, (diam_col, marker_col) in enumerate(zip(diam_data.columns, marker_data.columns)):
+                diam_vals = diam_data[diam_col]
+                marker_vals = marker_data[marker_col]
+
+                valid = ~diam_vals.isna() & ~marker_vals.isna()
+                x = diam_vals[valid]
+                y = marker_vals[valid]
+
+                sex = "Male" if idx < 3 else "Female"
+                color = 'cornflowerblue' if sex == "Male" else 'lightcoral'
+                label = None
+                if sex == "Male" and not plotted_male:
+                    label = "Male"
+                    plotted_male = True
+                elif sex == "Female" and not plotted_female:
+                    label = "Female"
+                    plotted_female = True
+
+                ax.scatter(x, y, color=color, label=label, alpha=0.7, s=20)
+
+                if sex == "Male":
+                    male_x.extend(x)
+                    male_y.extend(y)
+                else:
+                    female_x.extend(x)
+                    female_y.extend(y)
+
+            # Add regression lines and Pearson r with p-values
+            if male_x:
+                coeffs = np.polyfit(male_x, male_y, 1)
+                x_range = np.linspace(min(male_x), max(male_x), 100)
+                ax.plot(x_range, np.polyval(coeffs, x_range), color="#1f77b4", linestyle='--')
+
+                r_male, p_male = pearsonr(male_x, male_y)
+                ax.text(0.05, 0.95, f"Male r = {r_male:.2f}, p = {p_male:.3f}", color='cornflowerblue',
+                        transform=ax.transAxes, fontsize=10, verticalalignment='top')
+                print(f"{sample_label} - {q} - Male: Pearson r = {r_male:.3f}, p = {p_male:.4f}")
+
+            if female_x:
+                coeffs = np.polyfit(female_x, female_y, 1)
+                x_range = np.linspace(min(female_x), max(female_x), 100)
+                ax.plot(x_range, np.polyval(coeffs, x_range), color="#d62728", linestyle='--')
+
+                r_female, p_female = pearsonr(female_x, female_y)
+                ax.text(0.05, 0.85, f"Female r = {r_female:.2f}, p = {p_female:.3f}", color='lightcoral',
+                        transform=ax.transAxes, fontsize=10, verticalalignment='top')
+                print(f"{sample_label} - {q} - Female: Pearson r = {r_female:.3f}, p = {p_female:.4f}")
+
+            ax.set_title(subplot_titles[i])
+            ax.set_xlabel("Diameter (µm)")
+            if i == 0:
+                ax.set_ylabel(y_label)
+            ax.grid(True, linestyle='--', alpha=0.5)
+            if i == 0:
+                ax.legend()
+
+        plt.tight_layout(rect=[0, 0, 1, 0.93])
+
+        if save:
+            desktop = os.path.expanduser("~/Desktop")
+            filename = f"{marker_name}_vs_Diameter_{sample_label.replace(' ', '_')}.png"
+            plt.savefig(os.path.join(desktop, filename), dpi=300)
+            print(f"Plot saved to: {filename}")
+
+        plt.show()
+
+    # Sample 1: columns A–F (0–6)
+    plot_sample((0, 6), "Sample 1", subplot_titles_s1)
+
+    # Sample 2: columns G–L (6, 12)
+    plot_sample((6, 12), "Sample 2", subplot_titles_s2)
+
+
+plot_folder_scatter_regression_split_samples(
+    diameter_folder='/Users/dinosaur.z/Desktop/Quadrant data (population median)/Diameter',
+    marker_folder='/Users/dinosaur.z/Desktop/Quadrant data (population median)/G4',
+    y_label='GLUT 4',
+    marker_name='G4',
+    subplot_titles_s1= custom_titles_s1,
+    subplot_titles_s2= custom_titles_s2,
+    save=True
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
